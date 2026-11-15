@@ -1,11 +1,10 @@
-"""Подбор эвристик на отдельных seed и итоговая оценка всех политик на тестовых сценариях.
+"""Итоговая оценка всех политик на тестовых сценариях (после train.py и tune_baselines.py).
 
     python evaluate.py
 
-Результаты: results/baselines.json (параметры эвристик), results/test_metrics.csv
-(строка = политика x seed обучения x сценарий; метрики усреднены по 200 тестовым эпизодам).
+Результат: results/test_metrics.csv, строка = политика x seed обучения x сценарий,
+метрики усреднены по 200 тестовым эпизодам (одни и те же эпизоды для всех политик).
 """
-import itertools
 import json
 import os
 import re
@@ -24,41 +23,19 @@ from inventory_rl.policies import (
 )
 
 
-def grid_search(make_policy, grid, scenario) -> tuple:
-    """Полный перебор параметров эвристики по средней стоимости на эпизодах TUNE_SEEDS."""
-    costs = {params: summarize(rollout(make_policy(*params), config.TUNE_SEEDS, scenario=scenario))["cost"]
-             for params in grid}
-    return min(costs, key=costs.get)
-
-
-def tune_baselines() -> dict:
-    train = config.TRAIN_SCENARIO
-    levels = [(s,) for s in range(20, 61)]
-    params = {
-        "base_stock_calm": grid_search(BaseStockPolicy, levels, config.CALM_SCENARIO),
-        "base_stock_static": grid_search(BaseStockPolicy, levels, train),
-        "oracle": grid_search(OracleBaseStockPolicy, itertools.product(range(25, 50), range(35, 75)), train),
-    }
-    # Для трёх параметров полный перебор с шагом 1 долгий: грубая сетка, затем уточнение вокруг лучшей точки.
-    calm, shock, thr = grid_search(
-        SignalBaseStockPolicy, itertools.product(range(28, 48, 3), range(38, 70, 4), (0.2, 0.35, 0.5, 0.65)), train)
-    thresholds = (round(thr - 0.1, 2), thr, round(thr + 0.1, 2))
-    params["base_stock_signal"] = grid_search(
-        SignalBaseStockPolicy, itertools.product(range(calm - 2, calm + 3), range(shock - 3, shock + 4), thresholds), train)
-    return params
-
-
-def main():
-    torch.set_num_threads(1)
-    params = tune_baselines()
-    Path("results/baselines.json").write_text(json.dumps(params, indent=2))
-    print("эвристики:", params)
-
+def load_models() -> list:
+    """Модели из models/: имя файла {условие}{тег}_s{seed}.zip."""
     models = []
     for path in sorted(Path("models").glob("*.zip")):
         cond, tag, seed = re.fullmatch(r"(base|regime)(_long)?_s(\d+)", path.stem).groups()
         models.append((cond + (tag or ""), int(seed), PPO.load(path, device="cpu"), config.CONDITIONS[cond]))
+    return models
 
+
+def main():
+    torch.set_num_threads(1)
+    params = json.loads(Path("results/baselines.json").read_text())
+    models = load_models()
     rows = []
     for scenario in config.TEST_SCENARIOS:
         heuristics = {

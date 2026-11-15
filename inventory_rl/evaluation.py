@@ -3,7 +3,7 @@ import numpy as np
 
 from .env import SHOCK, InventoryRegimeEnv
 
-TRACE_KEYS = ("cost", "holding", "penalty", "purchase", "demand", "lost", "inventory", "order", "level", "regime")
+TRACE_KEYS = ("cost", "holding", "penalty", "purchase", "demand", "lost", "inventory", "order", "position", "regime")
 
 
 def rollout(policy, seeds, **env_kwargs) -> dict[str, np.ndarray]:
@@ -21,6 +21,10 @@ def rollout(policy, seeds, **env_kwargs) -> dict[str, np.ndarray]:
     return trace
 
 
+def _mean(values: np.ndarray) -> float:
+    return float(values.mean()) if values.size else float("nan")  # в спокойном сценарии шоковых шагов нет
+
+
 def summarize(trace: dict[str, np.ndarray]) -> dict[str, float]:
     """Метрики по набору эпизодов. Метрики по режимам считаются по всем шагам этого режима вместе."""
     shock = trace["regime"] == SHOCK
@@ -32,11 +36,11 @@ def summarize(trace: dict[str, np.ndarray]) -> dict[str, float]:
         "purchase": trace["purchase"].sum(1).mean(),
         "stockout_rate": stockout.mean(),
         "lost_share": trace["lost"].sum() / trace["demand"].sum(),
-        "level_calm": trace["level"][~shock].mean(),
-        "level_shock": trace["level"][shock].mean(),
-        "inv_calm": trace["inventory"][~shock].mean(),
-        "inv_shock": trace["inventory"][shock].mean(),
-        "stockout_calm": stockout[~shock].mean(),
-        "stockout_shock": stockout[shock].mean(),
+        "position_calm": _mean(trace["position"][~shock]),
+        "position_shock": _mean(trace["position"][shock]),
+        "inv_calm": _mean(trace["inventory"][~shock]),
+        "inv_shock": _mean(trace["inventory"][shock]),
+        "stockout_calm": _mean(stockout[~shock]),
+        "stockout_shock": _mean(stockout[shock]),
         "shock_share": shock.mean(),
     }

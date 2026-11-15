@@ -151,8 +151,10 @@ class InventoryRegimeEnv(gym.Env):
         return np.concatenate(parts).astype(np.float32)
 
     def step(self, action):
-        level = int(action)
-        order = max(0, level - self.inventory_position())
+        # Все S не выше текущей позиции дают один и тот же нулевой заказ, поэтому для анализа
+        # записывается фактическая позиция после заказа max(S, позиция), а не само действие.
+        order = max(0, int(action) - self.inventory_position())
+        position = self.inventory_position() + order
         regime = self.current_regime
         demand = int(self.demands[self.history_len + self.t])
 
@@ -171,6 +173,6 @@ class InventoryRegimeEnv(gym.Env):
         truncated = self.t >= self.horizon  # конец эпизода только по горизонту, терминальных состояний нет
         info = {
             "cost": cost, "holding": holding, "penalty": penalty, "purchase": purchase, "demand": demand,
-            "lost": lost, "inventory": self.inventory, "order": order, "level": level, "regime": regime,
+            "lost": lost, "inventory": self.inventory, "order": order, "position": position, "regime": regime,
         }
         return self._obs(), -cost, False, truncated, info
