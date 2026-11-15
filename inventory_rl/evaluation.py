@@ -3,7 +3,7 @@ import numpy as np
 
 from .env import SHOCK, InventoryRegimeEnv
 
-TRACE_KEYS = ("cost", "holding", "penalty", "purchase", "demand", "lost", "inventory", "order", "position", "regime")
+TRACE_KEYS = ("cost", "holding", "penalty", "purchase", "demand", "lost", "inventory", "position", "regime")
 
 
 def rollout(policy, seeds, **env_kwargs) -> dict[str, np.ndarray]:

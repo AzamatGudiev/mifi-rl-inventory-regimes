@@ -1,0 +1,17 @@
+{
+  "base_stock_calm": [
+    35
+  ],
+  "base_stock_static": [
+    41
+  ],
+  "oracle": [
+    36,
+    51
+  ],
+  "base_stock_signal": [
+    37,
+    50,
+    0.35
+  ]
+}
